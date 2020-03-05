@@ -40,6 +40,16 @@ source ~/catkin_ws/devel/setup.bash
 ```bash
 make px4_sitl_default jmavsim
 ```
+if it shows ant: command not found error, do:
+```bash
+sudo apt-get update
+sudo apt-get install ant
+```
+
+if it shows "Ant needs tools.jar and unable to find it", do:
+```bash
+sudo apt-get install openjdk-8-jdk
+```
 
 - connect to the simulated drone:
 ```bash
