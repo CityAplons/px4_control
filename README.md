@@ -54,6 +54,8 @@ sudo apt-get install openjdk-8-jdk
 
 - connect to the simulated drone:
 ```bash
+cd aerovr_ws/
+source ~/aerovr_ws/devel/setup.bash
 roslaunch px4_control px4_sim.launch
 ```
 
