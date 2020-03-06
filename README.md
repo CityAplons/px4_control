@@ -38,6 +38,7 @@ source ~/catkin_ws/devel/setup.bash
 
 - launch a simulated environment (Jmavsim):
 ```bash
+cd PX4/Firmware/
 make px4_sitl_default jmavsim
 ```
 if it shows ant: command not found error, do:
