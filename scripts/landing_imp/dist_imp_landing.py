@@ -70,7 +70,7 @@ def landing():
         # correct pose with impedance model
         # if imp_pose[2] > 0.03: imp_pose[2] = 0.03
         sp.pose.position.z += imp_pose
-        print imp_pose
+        print(imp_pose)
 
         local_pos_pub.publish(sp)
         rate.sleep()

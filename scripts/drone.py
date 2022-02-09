@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
-import mavros
+from pymavlink import mavutil
 from geometry_msgs.msg import PoseStamped
-from mavros_msgs.msg import State 
-from mavros_msgs.srv import CommandBool, SetMode
+from mavros_msgs.msg import State, ParamValue, ExtendedState
+from mavros_msgs.srv import CommandBool, SetMode, ParamSet
 from tf.transformations import *
-import message_filters
 
 from math import *
 import numpy as np
@@ -18,22 +17,117 @@ class Drone:
         self.pose = None
         self.yaw = 0
         self.sp = None
-        self.hz = 10
+        self.hz = 20
         self.rate = rospy.Rate(self.hz)
 
         self.current_state = State()
-        self.prev_request = None
-        self.prev_state = None
-        self.state = None
+        self.extended_state = ExtendedState()
 
         self.setpoint_publisher = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
+        # ROS services
+        service_timeout = 30
+        rospy.loginfo("Waiting for ROS services")
+        try:
+            rospy.wait_for_service('/mavros/param/set', service_timeout)
+            rospy.wait_for_service('/mavros/cmd/arming', service_timeout)
+            rospy.wait_for_service('/mavros/set_mode', service_timeout)
+            rospy.loginfo("ROS services are up")
+        except rospy.ROSException:
+            self.fail("failed to connect to services")
         self.arming_client = rospy.ServiceProxy('/mavros/cmd/arming', CommandBool)
         self.set_mode_client = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+        self.set_param_client = rospy.ServiceProxy('mavros/param/set', ParamSet)
         rospy.Subscriber('/mavros/state', State, self.state_callback)
         rospy.Subscriber('/mavros/local_position/pose', PoseStamped, self.drone_pose_callback)
+        rospy.Subscriber('/mavros/extended_state', ExtendedState, self.extended_state_callback)
+
+    def __set_param(self, param_id, param_value: ParamValue, timeout: float) -> bool:
+        """param: PX4 param string, ParamValue, timeout(int): seconds"""
+        if param_value.integer != 0:
+            value = param_value.integer
+        else:
+            value = param_value.real
+        rospy.loginfo("Setting PX4 parameter: {0} with value {1}".
+        format(param_id, value))
+        loop_freq = 1  # Hz
+        rate = rospy.Rate(loop_freq)
+        for i in range(timeout * loop_freq):
+            try:
+                res = self.set_param_client(param_id, param_value)
+                if res.success:
+                    rospy.loginfo("Param {0} set to {1} | seconds: {2} of {3}".
+                    format(param_id, value, i / loop_freq, timeout))
+                return True
+            except rospy.ServiceException as e:
+                rospy.logerr(e)
+
+            try:
+                rate.sleep()
+            except rospy.ROSException as e:
+                self.fail(e)
+
+        rospy.logerr(
+            "Failed to set param | param_id: {0}, param_value: {1} | timeout(seconds): {2}".
+            format(param_id, value, timeout))
+        return False
+
+    def __set_mode(self, mode, timeout) -> bool:
+        """mode: PX4 mode string, timeout(int): seconds"""
+        rospy.loginfo("Setting FCU mode: {0}".format(mode))
+        old_mode = self.current_state.mode
+        loop_freq = 1  # Hz
+        rate = rospy.Rate(loop_freq)
+        for i in range(timeout * loop_freq):
+            if self.current_state.mode == mode:
+                rospy.loginfo("Set mode success | seconds: {0} of {1}".format(
+                    i / loop_freq, timeout))
+                return True
+            else:
+                try:
+                    res = self.set_mode_client(0, mode)  # 0 is custom mode
+                    if not res.mode_sent:
+                        rospy.logerr("Failed to send mode command")
+                except rospy.ServiceException as e:
+                    rospy.logerr(e)
+
+            try:
+                rate.sleep()
+            except rospy.ROSException as e:
+                self.fail(e)
+
+        rospy.logerr(
+            "Failed to set mode | new mode: {0}, old mode: {1} | timeout(seconds): {2}".
+            format(mode, old_mode, timeout))
+        return False
 
     def state_callback(self, state):
+        if self.current_state.armed != state.armed:
+            rospy.loginfo("armed state changed from {0} to {1}".format(
+                self.current_state.armed, state.armed))
+
+        if self.current_state.connected != state.connected:
+            rospy.loginfo("connected changed from {0} to {1}".format(
+                self.current_state.connected, state.connected))
+
+        if self.current_state.mode != state.mode:
+            rospy.loginfo("mode changed from {0} to {1}".format(
+                self.current_state.mode, state.mode))
+
+        if self.current_state.system_status != state.system_status:
+            rospy.loginfo("system_status changed from {0} to {1}".format(
+                mavutil.mavlink.enums['MAV_STATE'][
+                    self.current_state.system_status].name, mavutil.mavlink.enums[
+                        'MAV_STATE'][state.system_status].name))
         self.current_state = state
+
+    def extended_state_callback(self, data):
+        if self.extended_state.landed_state != data.landed_state:
+            rospy.loginfo("Landed state changed from {0} to {1}".format(
+                mavutil.mavlink.enums['MAV_LANDED_STATE']
+                [self.extended_state.landed_state].name, mavutil.mavlink.enums[
+                    'MAV_LANDED_STATE'][data.landed_state].name))
+
+        self.extended_state = data
 
     def drone_pose_callback(self, pose_msg):
         self.pose = np.array([ pose_msg.pose.position.x, pose_msg.pose.position.y, pose_msg.pose.position.z ])
@@ -47,6 +141,10 @@ class Drone:
         while not self.current_state.connected:
             print('Waiting for FCU connection...')
             self.rate.sleep()
+        
+        # exempting failsafe from lost RC to allow offboard
+        # rcl_except = ParamValue(1<<2, 0.0)
+        # self.__set_param("COM_RCL_EXCEPT", rcl_except, 5)
 
         prev_request = rospy.get_time()
         prev_state = self.current_state
@@ -93,6 +191,15 @@ class Drone:
 
     def takeoff(self, height):
         print("Takeoff...")
+        # self.__set_mode("AUTO.TAKEOFF", 5)
+        # takeoff_state_confirmed = False
+        # while not takeoff_state_confirmed:
+        #     if self.extended_state.landed_state == mavutil.mavlink.MAV_LANDED_STATE_IN_AIR:
+        #         takeoff_state_confirmed = True
+        #     try:
+        #         self.rate.sleep()
+        #     except rospy.ROSException as e:
+        #         self.fail(e)
         self.sp = self.pose
         while self.pose[2] < height:
             self.sp[2] += 0.02
@@ -112,11 +219,21 @@ class Drone:
 
     def land(self):
         print("Landing...")
-        self.sp = self.pose
-        while self.sp[2] > - 1.0:
-            self.sp[2] -= 0.05
-            self.publish_setpoint(self.sp)
-            self.rate.sleep()
+        self.__set_mode("AUTO.LAND", 5)
+        # self.sp = self.pose
+        # while self.sp[2] > - 1.0:
+        #     self.sp[2] -= 0.05
+        #     self.publish_setpoint(self.sp)
+        #     self.rate.sleep()
+        landed_state_confirmed = False
+        while not landed_state_confirmed:
+            if self.extended_state.landed_state == mavutil.mavlink.MAV_LANDED_STATE_ON_GROUND:
+                landed_state_confirmed = True
+            
+            try:
+                self.rate.sleep()
+            except rospy.ROSException as e:
+                self.fail(e)
         self.stop()
 
     def stop(self):
@@ -142,7 +259,7 @@ class Drone:
             goal = wp
         elif mode=='relative':
             goal = self.pose + wp
-        print "Going to a waypoint..."
+        print("Going to a waypoint...")
         self.sp = self.pose
         while norm(goal - self.pose) > tol:
             n = (goal - self.sp) / norm(goal - self.sp)

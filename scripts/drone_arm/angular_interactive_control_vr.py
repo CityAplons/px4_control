@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
+import time
 from drone import Drone
 from vr_object import VRController
 import numpy as np
@@ -26,8 +27,9 @@ if __name__ == '__main__':
 	time_to_eval = 0.8 # sec
 	angles = controller.orientation()
 	for i in range(int(time_to_eval*100)):
-	    angles = np.vstack([angles, controller.orientation()])
-	    time.sleep(0.01)
+		angles = np.vstack([angles, controller.orientation()])
+		time.sleep(0.01)
+		
 	mean_angles = np.array([np.mean(angles[:,0]), np.mean(angles[:,1]), np.mean(angles[:,2])])
 
     # arm the drone and takeoff
@@ -42,9 +44,9 @@ if __name__ == '__main__':
 		controller.position()
 
 		if not initialized_drone_pose:
-		    drone.sp = np.array( [drone.pose[0], drone.pose[1], takeoff_height] )
-		    time_prev = time.time()
-		    initialized_drone_pose = True
+			drone.sp = np.array( [drone.pose[0], drone.pose[1], takeoff_height] )
+			time_prev = time.time()
+			initialized_drone_pose = True
 
 		# estimate controller movements relative to initial orientation
 		roll = controller.orient[0] - mean_angles[0]
@@ -65,8 +67,8 @@ if __name__ == '__main__':
 		else: yaw_input = yaw
 
 		# constructing drone's commands
-		cmd_vel = vel_coef * np.array([x_input, y_input, z_input])
 		yaw_input = yaw_coef * yaw_input
+		cmd_vel = vel_coef * np.array([x_input, y_input, yaw_input]) #z-input
 		# print('cmd_vel', cmd_vel)
 		# np.putmask(cmd_vel, abs(cmd_vel) <= (vel_koef*0.035), 0)
 		# np.putmask(cmd_vel, abs(cmd_vel) <= (0.20), 0)

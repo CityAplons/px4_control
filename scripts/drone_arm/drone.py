@@ -143,7 +143,7 @@ class Drone:
             goal = wp
         elif mode=='relative':
             goal = self.pose + wp
-        print "Going to a waypoint..."
+        print("Going to a waypoint...")
         self.sp = self.pose
         while norm(goal - self.pose) > tol:
             n = (goal - self.sp) / norm(goal - self.sp)
