@@ -1,6 +1,9 @@
 # PX4 drone control
 ROS node to control a px4-firmware drone. Waypoints following, intelligent landing.
 
+> This fork is used for DroneArm project.
+> You may get more information in the [following readme](./scripts/drone_arm/readme.md).
+
 ![jmavsim_flight](https://github.com/RuslanAgishev/px4_control/blob/master/sim_flight.png)
 
 ## Installation

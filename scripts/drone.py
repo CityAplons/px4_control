@@ -139,9 +139,10 @@ class Drone:
     
         # wait for FCU connection
         while not self.current_state.connected:
-            print('Waiting for FCU connection...')
+            rospy.loginfo('Waiting for FCU connection...')
             self.rate.sleep()
         
+        ## JMAVSIM ONLY
         # exempting failsafe from lost RC to allow offboard
         # rcl_except = ParamValue(1<<2, 0.0)
         # self.__set_param("COM_RCL_EXCEPT", rcl_except, 5)
@@ -160,10 +161,10 @@ class Drone:
 
             # older versions of PX4 always return success==True, so better to check Status instead
             if prev_state.armed != self.current_state.armed:
-                print("Vehicle armed: %r" % self.current_state.armed)
+                rospy.loginfo("Vehicle armed: %r" % self.current_state.armed)
 
             if prev_state.mode != self.current_state.mode: 
-                print("Current mode: %s" % self.current_state.mode)
+                rospy.loginfo("Current mode: %s" % self.current_state.mode)
             prev_state = self.current_state
 
             if self.current_state.armed:
@@ -190,7 +191,7 @@ class Drone:
         self.setpoint_publisher.publish(setpoint)
 
     def takeoff(self, height):
-        print("Takeoff...")
+        rospy.loginfo("Takeoff...")
         # self.__set_mode("AUTO.TAKEOFF", 5)
         # takeoff_state_confirmed = False
         # while not takeoff_state_confirmed:
@@ -207,7 +208,7 @@ class Drone:
             self.rate.sleep()
 
     def hover(self, t_hold):
-        print('Position holding...')
+        rospy.loginfo('Position holding...')
         t0 = time.time()
         self.sp = self.pose
         while not rospy.is_shutdown():
@@ -218,13 +219,8 @@ class Drone:
             self.rate.sleep()
 
     def land(self):
-        print("Landing...")
+        rospy.loginfo("Landing...")
         self.__set_mode("AUTO.LAND", 5)
-        # self.sp = self.pose
-        # while self.sp[2] > - 1.0:
-        #     self.sp[2] -= 0.05
-        #     self.publish_setpoint(self.sp)
-        #     self.rate.sleep()
         landed_state_confirmed = False
         while not landed_state_confirmed:
             if self.extended_state.landed_state == mavutil.mavlink.MAV_LANDED_STATE_ON_GROUND:
@@ -259,7 +255,7 @@ class Drone:
             goal = wp
         elif mode=='relative':
             goal = self.pose + wp
-        print("Going to a waypoint...")
+        rospy.loginfo("Going to a waypoint...")
         self.sp = self.pose
         while norm(goal - self.pose) > tol:
             n = (goal - self.sp) / norm(goal - self.sp)
