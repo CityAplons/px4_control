@@ -8,10 +8,10 @@
 ### Packet dependencies
 
 - [mavros](https://docs.px4.io/master/en/ros/mavros_installation.html)
-- rosserial, rosserial_server
+- rosbridge-server
 
     ```bash
-        sudo apt install ros-noetic-rosserial ros-noetic-rosserial-server
+        sudo apt install ros-noetic-rosbridge-server
     ```
 
 - [vicon_bridge](https://github.com/ethz-asl/vicon_bridge)
