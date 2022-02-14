@@ -15,7 +15,7 @@ import time
 class Drone:
     def __init__(self):
         self.pose = None
-        self.yaw = 0
+        self.yaw = np.pi/2
         self.sp = None
         self.hz = 20
         self.rate = rospy.Rate(self.hz)
@@ -186,6 +186,7 @@ class Drone:
         set_pose.pose.orientation.w = q[3]
         return set_pose
     def publish_setpoint(self, sp, yaw=np.pi/2):
+        print(yaw)
         setpoint = self.get_setpoint(sp[0], sp[1], sp[2], yaw)
         setpoint.header.stamp = rospy.Time.now()
         self.setpoint_publisher.publish(setpoint)
@@ -202,9 +203,11 @@ class Drone:
         #     except rospy.ROSException as e:
         #         self.fail(e)
         self.sp = self.pose
-        while self.pose[2] < height:
+        while not rospy.is_shutdown() and self.pose[2] < height:
+            if rospy.is_shutdown():
+                self.land()
             self.sp[2] += 0.02
-            self.publish_setpoint(self.sp)
+            self.publish_setpoint(self.sp, self.yaw)
             self.rate.sleep()
 
     def hover(self, t_hold):
@@ -215,7 +218,7 @@ class Drone:
             t = time.time()
             if t - t0 > t_hold and t_hold > 0: break
             # Update timestamp and publish sp 
-            self.publish_setpoint(self.sp)
+            self.publish_setpoint(self.sp, self.yaw)
             self.rate.sleep()
 
     def land(self):
@@ -257,8 +260,11 @@ class Drone:
             goal = self.pose + wp
         rospy.loginfo("Going to a waypoint...")
         self.sp = self.pose
-        while norm(goal - self.pose) > tol:
+        while not rospy.is_shutdown() and norm(goal - self.pose) > tol:
+            if rospy.is_shutdown():
+                self.land()
             n = (goal - self.sp) / norm(goal - self.sp)
             self.sp += 0.03 * n
-            self.publish_setpoint(self.sp)
+            #print(self.pose, goal)
+            self.publish_setpoint(self.sp, self.yaw)
             self.rate.sleep()
