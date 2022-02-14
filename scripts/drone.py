@@ -186,10 +186,13 @@ class Drone:
         set_pose.pose.orientation.w = q[3]
         return set_pose
     def publish_setpoint(self, sp, yaw=np.pi/2):
-        print(yaw)
+        #print(yaw)
         setpoint = self.get_setpoint(sp[0], sp[1], sp[2], yaw)
         setpoint.header.stamp = rospy.Time.now()
         self.setpoint_publisher.publish(setpoint)
+    def publish_pose(self, pose: PoseStamped):
+        pose.header.stamp = rospy.Time.now()
+        self.setpoint_publisher.publish(pose)
 
     def takeoff(self, height):
         rospy.loginfo("Takeoff...")
