@@ -1,29 +1,28 @@
 <?xml version="1.0"?>
 <launch>
-
+    <!-- MAVROS Related Nodes -->
 	<arg name="fcu_url" default="/dev/serial0:921600" />
 	<arg name="gcs_url" default="udp://@192.168.137.144" />
+    <include file="$(find mavros)/launch/px4.launch">
+        <arg name="gcs_url" value="$(arg gcs_url)"/>
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+    </include>
 
-    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
-		<arg name="port" value="9090"/>
-	</include>
-
+    <!-- VICON Related Nodes -->
     <node pkg="vicon_bridge" type="vicon_bridge" name="vicon" output="log">
         <param name="stream_mode" value="ClientPull" type="str" />
         <param name="datastream_hostport" value="192.168.137.1:801" type="str" />
         <param name="tf_ref_frame_id" value="world" type="str" />
     </node>
-
-    <include file="$(find mavros)/launch/px4.launch">
-        <arg name="gcs_url" value="$(arg gcs_url)"/>
-        <arg name="fcu_url" value="$(arg fcu_url)"/>
-    </include>
     <node name="mocap2pixhawk" pkg="px4_control" type="mocap2pixhawk.py" output="screen" />
-
     <node pkg="tf" type="static_transform_publisher" name="tf_map"
         args="0 0 0 -1.5708 0 0 world map 100"/>
      <node pkg="tf" type="static_transform_publisher" name="tf_base_link"
         args="0 0 0 0 0 0 map base_link 100"/> 
-    <!-- graphs visualization -3.1415279 -->
-    <!-- <node pkg="rqt_plot" type="rqt_plot" name="rqt_plot1" args="/mavros/local_position/pose/pose/position/x:y:z"/> -->
+
+    <!-- Unity Bridge Related Nodes -->
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+		<arg name="port" value="9090"/>
+	</include>
+    <node name="unitycontrol" pkg="px4_control" type="drone_unity.py" output="screen" />
 </launch>
