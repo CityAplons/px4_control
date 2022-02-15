@@ -20,5 +20,9 @@
 		<arg name="log_output" value="$(arg log_output)" />
 	</include>
 
+	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+		<arg name="port" value="9090"/>
+		<arg name="address" value="192.168.137.144"/>
+	</include>
 	<node name="unitycontrol" pkg="px4_control" type="drone_unity.py" output="screen" />
 </launch>
