@@ -191,6 +191,10 @@ class Drone:
         setpoint.header.stamp = rospy.Time.now()
         self.setpoint_publisher.publish(setpoint)
     def publish_pose(self, pose: PoseStamped):
+        self.yaw = euler_from_quaternion([  pose.pose.orientation.x,
+                                            pose.pose.orientation.y,
+                                            pose.pose.orientation.z,
+                                            pose.pose.orientation.w])[2]
         pose.header.stamp = rospy.Time.now()
         self.setpoint_publisher.publish(pose)
 

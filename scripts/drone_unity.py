@@ -27,7 +27,6 @@ class UnityDroneController:
             UnitySetStateRequest.POSCTL: self.__position_control,
             UnitySetStateRequest.LAND: self.__land
         }
-        self.rate = rospy.Rate(20) # 20hz
         self.set_point = None # hover set_point
         self.pose = None # movto pose
         self.control_provider()
@@ -56,7 +55,7 @@ class UnityDroneController:
                 rospy.loginfo("[SM] Mode changed to %s", self.mode_state)
                 prev_state = self.mode_state
             self.states[self.mode_state]()
-            self.rate.sleep()
+            self.drone.rate.sleep()
 
     def __takeoff(self):
         if self.drone_state == UnityGetStateResponse.ONGROUND:
@@ -73,6 +72,9 @@ class UnityDroneController:
     def __position_control(self):
         if self.pose is not None:
             self.set_point = None
+        else:
+            sp = self.drone.pose
+            self.pose = self.drone.get_setpoint(sp[0], sp[1], sp[2])
         self.drone.publish_pose(self.pose)
 
     def __land(self):
