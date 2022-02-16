@@ -19,7 +19,7 @@ class UnityDroneController:
         rospy.Service('unity/get_state', UnityGetState, self.handle_drone_state)
         rospy.Service('arm_active', std_srvs.srv.Trigger, self.handle_arm_state)
         rospy.Service('unity/set_state', UnitySetState, self.handle_drone_mode)
-        rospy.Subscriber('unity/set_pose', PoseStamped, self.set_pose_callback)
+        rospy.Subscriber('unity/set_pose', PoseStamped, self.set_pose_callback, queue_size=1)
         self.drone = Drone()
         self.states = {
             UnitySetStateRequest.TAKEOFF: self.__takeoff,
@@ -32,7 +32,7 @@ class UnityDroneController:
         self.control_provider()
 
     def handle_arm_state(self, req):
-        if self.drone_state == UnityGetStateResponse.INAIR and \
+        if self.drone_state == UnityGetStateResponse.INAIR and self.drone.current_state.mode == "OFFBOARD" and \
             (self.mode_state == UnitySetStateRequest.HOVER or self.mode_state == UnitySetStateRequest.POSCTL):
             return std_srvs.srv.TriggerResponse(True, "Drone Ready")
         else:
