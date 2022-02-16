@@ -38,8 +38,7 @@ if __name__ == '__main__':
         
         if not isArmInitialized and not calledOnce:
             calledOnce = True
-            # TODO: command to reset arm
-            ser.write(bytes(""))
+            ser.write(bytes("m -180.0 5.0 -90.0 -90.0 65.0"))
         if isArmInitialized:
             calledOnce = False
 
