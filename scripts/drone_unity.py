@@ -54,6 +54,8 @@ class UnityDroneController:
             if self.mode_state != prev_state:
                 rospy.loginfo("[SM] Mode changed to %s", self.mode_state)
                 prev_state = self.mode_state
+            if self.drone.current_state.mode != "OFFBOARD":
+                UnityGetStateResponse.ONGROUND
             self.states[self.mode_state]()
             self.drone.rate.sleep()
 
