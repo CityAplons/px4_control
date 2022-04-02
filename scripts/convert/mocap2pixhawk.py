@@ -36,7 +36,7 @@ def callback(data):
 
 def mocap2pixhawk():
 	rospy.init_node('convert', anonymous=True)
-	rospy.Subscriber('/vicon/DroneArm/DroneArm', TransformStamped, callback)
+	rospy.Subscriber('/vicon/DroneArm_1/DroneArm_1', TransformStamped, callback)
 	rospy.spin()
 
 if __name__ == '__main__':

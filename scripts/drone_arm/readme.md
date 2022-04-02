@@ -5,26 +5,27 @@
 
 ## Installation
 
-### Packet dependencies
+### 0.Packet dependencies
 
 - [mavros](https://docs.px4.io/master/en/ros/mavros_installation.html)
-- rosbridge-server
-
-    ```bash
-        sudo apt install ros-noetic-rosbridge-server
-    ```
-
+- [rosbridge-server](https://github.com/RobotWebTools/rosbridge_suite/tree/ros1)
 - [vicon_bridge](https://github.com/ethz-asl/vicon_bridge)
-- [robot_upstart](https://github.com/clearpathrobotics/robot_upstart)
+- [usb_cam](https://github.com/ros-drivers/usb_cam)
 
-### Load PX4 configuration parameters
+> NOTE: vicon_bridge is available on GitHub. Please, build it from source.
 
-Using QGroundControl load `drone_arms.params`. This parameters includes PID calibration and necessary mappings for MoCap and mavros,
+```bash
+sudo apt install ros-noetic-rosbridge-server ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-usb-cam
+```
+
+### 1.Load PX4 configuration parameters
+
+Using QGroundControl load `drone_arms.params` if PixhawkAP version < 1.12 or `drone_arms_new_fw.params` otherwise. This parameters includes PID calibration and necessary mappings for MoCap and mavros,
 such as enabled TELEM2 port with 92100 baud rate and parameters described in [PX4 MoCap article](https://docs.px4.io/master/en/ros/external_position_estimation.html).
 
-### Verify your Network parameters, Vicon IP & host IP
+### 2.Verify your Network parameters, Vicon IP & host IP in `drone_arm.launch`
 
-### Build ROS package in your workspace
+### 3.Build ROS package in your workspace
 
 ```bash
 catkin_make
@@ -32,20 +33,29 @@ catkin_make
 
 ## Script Execution
 
-Main launch file should start automatically during computer boot.
-You may check if it's running by `rostopic list` command. Mavros topics will be presented.
-
-Otherwise, you might manually run:
+### For the actual testing environment
 
 ```bash
-roslaunch px4_control drone_arm.launch
+roslaunch px4_control drone_arm.launch # Drone + Vicon + Camera + ROS Bridge + Controls 
 ```
 
-After, you could run control script.
+### For simulation
+
+Firstly, you should run the simulation environment (jmavsim or gazebo, see [PX4 Docs](https://docs.px4.io/master/en/simulation/) or root [README.md](../../README.md)). Then to launch controls, you may pass this command:
 
 ```bash
-rosrun px4_control interactive_control.py
+roslaunch px4_control px4_sim.launch # Drone + ROS Bridge + Controls 
 ```
+
+### After, you could run Unity with ROS# stack
+
+or check control with a simple keyboard teleop script:
+
+```bash
+rosrun px4_control keyboard_pose.py
+```
+
+---
 
 ## Legacy ReadMe
 

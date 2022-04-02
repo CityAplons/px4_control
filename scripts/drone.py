@@ -17,7 +17,7 @@ class Drone:
         self.pose = None
         self.yaw = np.pi/2
         self.sp = None
-        self.hz = 20
+        self.hz = 25
         self.rate = rospy.Rate(self.hz)
 
         self.current_state = State()

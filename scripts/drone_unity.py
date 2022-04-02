@@ -9,6 +9,9 @@ from math import *
 import numpy as np
 from drone import Drone
 
+from datetime import datetime
+from pathlib import Path
+
 class UnityDroneController:
     
     drone_state = UnityGetStateResponse.ONGROUND
@@ -16,6 +19,23 @@ class UnityDroneController:
 
     def __init__(self) -> None:
         rospy.init_node('drone_control', anonymous=True)
+        
+        ## Delay configuration resolver
+        self.make_delays = False
+        if rospy.has_param('~delays'):
+            self.make_delays = rospy.get_param('~delays')
+        self.delays_thresh = 500
+        self.delays_dir = str(Path.home())
+        if self.make_delays:
+            rospy.logwarn("Delay measurement is ON")
+            if rospy.has_param('~delays_dir'):
+                self.delays_dir = rospy.get_param('~delays_dir')
+                Path(self.delays_dir).mkdir(parents=True, exist_ok=True)
+            if rospy.has_param('~delays_thresh'):
+                self.delays_thresh = rospy.get_param('~delays_thresh')
+                rospy.logwarn("Delay measurement threshold changed to %d"%self.delays_thresh)
+            rospy.logwarn("Delay measurements directory: %s"%Path(self.delays_dir).resolve())
+
         rospy.Service('unity/get_state', UnityGetState, self.handle_drone_state)
         rospy.Service('arm_active', std_srvs.srv.Trigger, self.handle_arm_state)
         rospy.Service('unity/set_state', UnitySetState, self.handle_drone_mode)
@@ -29,6 +49,8 @@ class UnityDroneController:
         }
         self.set_point = None # hover set_point
         self.pose = None # movto pose
+        self.timestamps = []
+        self.delays = np.array([[0., 0.]])
         self.control_provider()
 
     def handle_arm_state(self, req):
@@ -46,6 +68,13 @@ class UnityDroneController:
         return UnitySetStateResponse(True)
 
     def set_pose_callback(self, data):
+        self.timestamps.append((rospy.Time.now() - data.header.stamp).to_sec())
+        if self.make_delays and len(self.timestamps) >= 500:
+            delay = np.mean(self.timestamps)
+            jitter = np.std(np.array(self.timestamps))
+            self.delays = np.append(self.delays, [[delay, jitter]], axis=0)
+            rospy.logwarn("=== Time delay %f, jitter %f ===", delay, jitter)
+            self.timestamps = []
         self.pose = data
 
     def control_provider(self):
@@ -62,7 +91,7 @@ class UnityDroneController:
     def __takeoff(self):
         if self.drone_state == UnityGetStateResponse.ONGROUND:
             self.drone.arm()
-            self.drone.takeoff(1.0)
+            self.drone.takeoff(1.5)
             self.drone_state = UnityGetStateResponse.INAIR
             self.mode_state = UnitySetStateRequest.HOVER
 
@@ -84,6 +113,11 @@ class UnityDroneController:
             self.drone.land()
             self.drone_state = UnityGetStateResponse.ONGROUND
             self.mode_state = UnitySetStateRequest.LAND
+            
+            if self.make_delays:
+                now = datetime.now()
+                np.savetxt('%s/delays.%s.txt'%(self.delays_dir, now.strftime("%d-%m-%Y-%H-%M-%S")), self.delays, delimiter=",", fmt="%.6f")
+                self.delays = np.array([[0, 0]])
 
 if __name__ == '__main__':
     try:
